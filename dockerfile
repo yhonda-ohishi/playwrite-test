@@ -3,9 +3,11 @@
 # --- ビルドステージ (builder) ---
 # このステージでGoアプリケーションをビルドします。
 # 開発ツールやソースコードはここに存在しますが、最終イメージには含まれません。
-FROM golang:1.22-alpine AS builder # Goのコンパイラと開発環境を含むベースイメージ
+# Goのコンパイラと開発環境を含むベースイメージ
+FROM golang:1.22-alpine AS builder 
 
-WORKDIR /app # 作業ディレクトリを設定
+# 作業ディレクトリを設定
+WORKDIR /app 
 
 # Goモジュールファイルをコピー
 # go.mod と go.sum だけをコピーし、依存関係をダウンロードします。
@@ -31,7 +33,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix nocgo -o server .
 # --- 最終イメージステージ ---
 # このステージはGoのコンパイラやソースコードを含まず、
 # ビルド済みの実行ファイルと、アプリケーションの実行に必要な最小限の環境のみを含みます。
-FROM alpine:latest # 非常に軽量なベースイメージ（約5MB）
+# 非常に軽量なベースイメージ（約5MB）
+FROM alpine:latest 
 
 # タイムゾーンデータをインストール (ログなどでタイムゾーンが正しく表示されるように、必要であれば)
 RUN apk --no-cache add ca-certificates tzdata
