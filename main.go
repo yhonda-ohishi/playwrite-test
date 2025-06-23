@@ -149,8 +149,8 @@ func getPage(txtID2 string, txtID1 string, txtPass string) error {
 	// ブラウザの起動
 	log.Println("ブラウザを起動しています...")
 	// ヘッドレスモードを無効にしてGUIを表示する場合は、Headless: playwright.Bool(false) を指定
-	browser, err := pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{Headless: playwright.Bool(false)})
-	// browser, err := pw.Chromium.Launch()
+	// browser, err := pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{Headless: playwright.Bool(false)})
+	browser, err := pw.Chromium.Launch()
 	if err != nil {
 		log.Fatalf("ブラウザの起動に失敗しました: %v", err)
 	}
