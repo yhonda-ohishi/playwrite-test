@@ -11,6 +11,11 @@ WORKDIR /app
 ENV GOPRIVATE=github.com/yhonda-ohishi/*
 
 
+# gitコマンドをインストールする
+# apk add はAlpine Linuxでのパッケージインストールコマンドです。
+RUN apk add --no-cache git
+
+
 ARG GITHUB_TOKEN
 RUN if [ -n "$GITHUB_TOKEN" ]; then \
     git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com".insteadOf "https://github.com"; \
