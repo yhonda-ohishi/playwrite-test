@@ -4,7 +4,7 @@
 # このステージでGoアプリケーションをビルドします。
 # 開発ツールやソースコードはここに存在しますが、最終イメージには含まれません。
 # Goのコンパイラと開発環境を含むベースイメージ
-FROM mcr.microsoft.com/playwright/go:v1.44.0-jammy  AS builder 
+FROM mcr.microsoft.com/playwright:v1.50.0-noble  AS builder 
 
 # 作業ディレクトリを設定
 WORKDIR /app 
