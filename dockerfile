@@ -1,86 +1,59 @@
-
-
 # --- ビルドステージ (builder) ---
-# このステージでGoアプリケーションをビルドします。
-# 開発ツールやソースコードはここに存在しますが、最終イメージには含まれません。
-# Goのコンパイラと開発環境を含むベースイメージ
-FROM golang:1.24.4-alpine  AS builder 
-# FROM mcr.microsoft.com/playwright/go:v1.44.0-jammy  AS builder 
+# Playwright の公式イメージ (Ubuntu Nobleベース) を使用します。
+# このイメージには Node.js、Playwright ライブラリ、ブラウザバイナリがプリインストールされています。
+# ただし、Go コンパイラは含まれていません。
+FROM mcr.microsoft.com/playwright:v1.53.0-noble AS builder
 
 # 作業ディレクトリを設定
-WORKDIR /app 
+WORKDIR /app
 
-
-# gitコマンドをインストールする
-# apk add はAlpine Linuxでのパッケージインストールコマンドです。
-RUN apk add --no-cache git
-RUN apk add --no-cache nodejs npm
-
-RUN apk add --no-cache \
-    chromium \
-    ttf-freefont \
-    nss \
-    freetype \
-    harfbuzz \
+# Go コンパイラをインストールする
+# Ubuntuベースなので apt-get を使用します。
+# Go 1.24.4 に対応するバージョンをインストールします。
+# リポジトリによっては最新版が提供されないこともあるので、go.mod のバージョンと合うか確認してください。
+# もし特定のバージョンが必要なら、goenv のようなツールを使う手もありますが、ここではシンプルに。
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    golang-go \
+    git \
     ca-certificates \
-    tzdata \
-    xvfb # ヘッドレス実行用
+    && rm -rf /var/lib/apt/lists/*
 
-# ENV GOPRIVATE  github.com/yhonda-ohishi/playwrite-test/*
+# Goモジュールのバージョンが go.mod と一致することを確認する（推奨）
+# この行はデバッグ用であり、通常は不要かもしれません。
+RUN go version
 
+# プライベートモジュールに依存している場合のみ残す
+# もし go.mod にプライベートモジュールへの require がないなら、これらも削除してください。
+# ENV GOPRIVATE github.com/yhonda-ohishi/playwrite-test/* # 必要なら修正
 # ARG GITHUB_TOKEN
 # RUN if [ -n "$GITHUB_TOKEN" ]; then \
 #     git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com".insteadOf "https://github.com"; \
 #     fi
+
 # Goモジュールファイルをコピー
-# go.mod と go.sum だけをコピーし、依存関係をダウンロードします。
-# これにより、Goモジュールの変更がなければこのレイヤーがキャッシュされ、ビルドが速くなります。
 COPY go.mod go.sum ./
 
 # 依存関係をダウンロード
 RUN go mod download
 
 # ソースコードをコピー
-# ここでアプリケーションのソースコードをコピーします。
-# このソースコードは「builder」ステージ内でのみ利用されます。
 COPY . .
 
 # アプリケーションをビルド
-# CGO_ENABLED=0: Cのコードに依存しない静的リンクされたバイナリを作成
-# GOOS=linux: Linux環境向けにビルド
-# -a: 完全に静的なバイナリを作成（システムのCライブラリに依存しない）
-# -installsuffix nocgo: CGoを使用しない場合の標準的なサフィックス
-# -o server: 実行ファイル名を 'server' に指定
+# CGO_ENABLED=0 は静的リンクされたバイナリを作成するために推奨されます。
+# GOOS=linux はこのイメージもLinuxベースなので問題ありません。
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix nocgo -o server .
 
 # --- 最終イメージステージ ---
-# このステージはGoのコンパイラやソースコードを含まず、
-# ビルド済みの実行ファイルと、アプリケーションの実行に必要な最小限の環境のみを含みます。
-# 非常に軽量なベースイメージ（約5MB）
-FROM alpine:latest 
-
-# タイムゾーンデータをインストール (ログなどでタイムゾーンが正しく表示されるように、必要であれば)
-RUN apk --no-cache add ca-certificates tzdata
+# アプリケーションが実行時にもPlaywrightを使うなら、同じイメージをベースにすべきです。
+# Playwright は Node.js プロセスやブラウザバイナリに依存するため、
+# 実行環境にもそれらが必要です。
+FROM mcr.microsoft.com/playwright:v1.53.0-noble
 
 # 作業ディレクトリを設定
 WORKDIR /root/
 
-
-# 最終ステージでもNode.jsとブラウザ依存関係をインストールする（もし必要なら）
-RUN apk add --no-cache nodejs npm \
-    chromium \
-    ttf-freefont \
-    nss \
-    freetype \
-    harfbuzz \
-    ca-certificates \
-    tzdata \
-    xvfb
-    
 # ビルドステージからコンパイル済みバイナリをコピー
-# ここが重要です。`COPY --from=builder /app/server .` は、
-# 上の「builder」ステージで作成された `server` という実行ファイルだけを
-# この最終ステージの `/root/` ディレクトリにコピーします。
 COPY --from=builder /app/server .
 
 # アプリケーションがリッスンするポートを公開 (情報提供のみ)
