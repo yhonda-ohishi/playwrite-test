@@ -1,3 +1,5 @@
 logs/*
 file/*
 tmp/*
+dtako_server
+.env
