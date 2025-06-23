@@ -8,13 +8,13 @@ FROM golang:1.22-alpine AS builder
 
 # 作業ディレクトリを設定
 WORKDIR /app 
-ENV GOPRIVATE  github.com/yhonda-ohishi/playwrite-test/*
 
 
 # gitコマンドをインストールする
 # apk add はAlpine Linuxでのパッケージインストールコマンドです。
 RUN apk add --no-cache git
 
+ENV GOPRIVATE  github.com/yhonda-ohishi/playwrite-test/*
 
 ARG GITHUB_TOKEN
 RUN if [ -n "$GITHUB_TOKEN" ]; then \
