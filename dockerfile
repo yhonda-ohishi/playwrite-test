@@ -8,7 +8,13 @@ FROM golang:1.22-alpine AS builder
 
 # 作業ディレクトリを設定
 WORKDIR /app 
+ENV GOPRIVATE=github.com/yhonda-ohishi/*
 
+
+ARG GITHUB_TOKEN
+RUN if [ -n "$GITHUB_TOKEN" ]; then \
+    git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com".insteadOf "https://github.com"; \
+    fi
 # Goモジュールファイルをコピー
 # go.mod と go.sum だけをコピーし、依存関係をダウンロードします。
 # これにより、Goモジュールの変更がなければこのレイヤーがキャッシュされ、ビルドが速くなります。
