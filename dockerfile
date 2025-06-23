@@ -4,7 +4,7 @@
 # このステージでGoアプリケーションをビルドします。
 # 開発ツールやソースコードはここに存在しますが、最終イメージには含まれません。
 # Goのコンパイラと開発環境を含むベースイメージ
-FROM golang:1.22-alpine AS builder 
+FROM golang:1.24.4-alpine  AS builder 
 
 # 作業ディレクトリを設定
 WORKDIR /app 
