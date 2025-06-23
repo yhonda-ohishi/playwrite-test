@@ -4,7 +4,8 @@
 # このステージでGoアプリケーションをビルドします。
 # 開発ツールやソースコードはここに存在しますが、最終イメージには含まれません。
 # Goのコンパイラと開発環境を含むベースイメージ
-FROM mcr.microsoft.com/playwright:v1.50.0-noble  AS builder 
+FROM golang:1.24.4-alpine  AS builder 
+# FROM mcr.microsoft.com/playwright/go:v1.44.0-jammy  AS builder 
 
 # 作業ディレクトリを設定
 WORKDIR /app 
@@ -13,6 +14,17 @@ WORKDIR /app
 # gitコマンドをインストールする
 # apk add はAlpine Linuxでのパッケージインストールコマンドです。
 RUN apk add --no-cache git
+RUN apk add --no-cache nodejs npm
+
+RUN apk add --no-cache \
+    chromium \
+    ttf-freefont \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    tzdata \
+    xvfb # ヘッドレス実行用
 
 # ENV GOPRIVATE  github.com/yhonda-ohishi/playwrite-test/*
 
@@ -53,6 +65,18 @@ RUN apk --no-cache add ca-certificates tzdata
 # 作業ディレクトリを設定
 WORKDIR /root/
 
+
+# 最終ステージでもNode.jsとブラウザ依存関係をインストールする（もし必要なら）
+RUN apk add --no-cache nodejs npm \
+    chromium \
+    ttf-freefont \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    tzdata \
+    xvfb
+    
 # ビルドステージからコンパイル済みバイナリをコピー
 # ここが重要です。`COPY --from=builder /app/server .` は、
 # 上の「builder」ステージで作成された `server` という実行ファイルだけを
