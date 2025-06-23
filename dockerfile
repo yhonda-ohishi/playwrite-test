@@ -8,7 +8,7 @@ FROM golang:1.22-alpine AS builder
 
 # 作業ディレクトリを設定
 WORKDIR /app 
-ENV github.com/yhonda-ohishi/playwrite-test/*
+ENV GOPRIVATE  github.com/yhonda-ohishi/playwrite-test/*
 
 
 # gitコマンドをインストールする
