@@ -44,7 +44,7 @@ jobs:
         context: . # Dockerfileがあるディレクトリ
         push: true # GHCRにプッシュする
         tags: |
-          cont_reg.mtamaramu.com/${{ github.repository }}:${{ github.sha }} 
-          cont_reg.mtamaramu.com/${{ github.repository }}:latest
+          cont_reg.mtamaramu.com/playwrite-test:${{ github.sha }} 
+          cont_reg.mtamaramu.com/playwrite-test:latest
         # build-args: | # <-- このセクションを追加
         #   GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
