@@ -73,6 +73,5 @@ jobs:
     #     tags: |
     #       ghcr.io/${{ github.repository }}:${{ github.sha }} # コミットSHAをタグとして使用
     #       ghcr.io/${{ github.repository }}:latest          
->>>>>>> 00439109ad8730f219de74cf468696c7736f0a85
         # build-args: | # <-- このセクションを追加
         #   GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
