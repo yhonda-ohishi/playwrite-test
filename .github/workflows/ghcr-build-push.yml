@@ -1,10 +1,13 @@
 name: Build & Push to GitHub Container Registry
 
 on:
+
   push:
     branches: [ "main" ] # mainブランチにプッシュされたときにトリガー
   pull_request:
     branches: [ "main" ] # mainブランチへのプルリクエストがあったときにトリガー
+  workflow_dispatch: # 手動実行を可能にする
+
 
 env:
   # イメージ名はリポジトリ名と一致させるのが一般的
@@ -13,11 +16,13 @@ env:
 
 jobs:
   build_and_push_image:
-    runs-on: ubuntu-latest # ジョブを実行するOS
+    # runs-on: ubuntu-latest # ジョブを実行するOS
+    runs-on: self-hosted # ここが重要！Self-hosted runner を指定
+
 
     permissions:
       contents: read       # コードを読み取る権限
-      packages: write      # GHCRにパッケージ（イメージ）を書き込む権限
+      # packages: write      # GHCRにパッケージ（イメージ）を書き込む権限
 
     steps:
     - name: Checkout repository # リポジトリをチェックアウト
@@ -26,12 +31,12 @@ jobs:
     - name: Set up Docker Buildx # Docker Buildx をセットアップ
       uses: docker/setup-buildx-action@v3
 
-    - name: Log in to GitHub Container Registry # GHCRにログイン
-      uses: docker/login-action@v3
-      with:
-        registry: ghcr.io # GHCRのレジストリURL
-        username: ${{ github.actor }} # ワークフローを実行しているユーザー名（GitHubの組み込み変数）
-        password: ${{ secrets.GITHUB_TOKEN }} # GitHubが自動で生成するPAT（パッケージを操作できる権限付き）
+    # - name: Log in to GitHub Container Registry # GHCRにログイン
+    #   uses: docker/login-action@v3
+    #   with:
+    #     registry: ghcr.io # GHCRのレジストリURL
+    #     username: ${{ github.actor }} # ワークフローを実行しているユーザー名（GitHubの組み込み変数）
+    #     password: ${{ secrets.GITHUB_TOKEN }} # GitHubが自動で生成するPAT（パッケージを操作できる権限付き）
 
     - name: Build and push Docker image # DockerイメージをビルドしてGHCRにプッシュ
       uses: docker/build-push-action@v5
@@ -39,7 +44,7 @@ jobs:
         context: . # Dockerfileがあるディレクトリ
         push: true # GHCRにプッシュする
         tags: |
-          ghcr.io/${{ github.repository }}:${{ github.sha }} 
-          ghcr.io/${{ github.repository }}:latest
-        build-args: | # <-- このセクションを追加
-          GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
+          cont_reg.mtamaramu.com/${{ github.repository }}:${{ github.sha }} 
+          cont_reg.mtamaramu.com/${{ github.repository }}:latest
+        # build-args: | # <-- このセクションを追加
+        #   GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
