@@ -51,7 +51,7 @@ jobs:
         context: . # Dockerfileがあるディレクトリ
         push: true # GHCRにプッシュする
         tags: |
-          ghcr.io/${{ github.repository }}:${{ github.sha }} # コミットSHAをタグとして使用
+          ghcr.io/${{ github.repository }}:${{ github.sha }}
           ghcr.io/${{ github.repository }}:latest       
 
     # - name: Log in to the Container registry
