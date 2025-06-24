@@ -44,7 +44,7 @@ jobs:
         context: . # Dockerfileがあるディレクトリ
         push: true # GHCRにプッシュする
         tags: |
-          cont_registry:5000/playwrite-test:${{ github.sha }} 
-          cont_registry:5000/playwrite-test:latest
+          cont_registry/playwrite-test:${{ github.sha }} 
+          cont_registry/playwrite-test:latest
         # build-args: | # <-- このセクションを追加
         #   GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
