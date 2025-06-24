@@ -34,12 +34,17 @@ jobs:
       # 👇 ここから新しいステップを追加します！
 
       # 👆 ここまで新しいステップ
-    - name: Log in to the Container registry
-      uses: docker/login-action@v3
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }} #
+    # - name: Log in to the Container registry
+    #   uses: docker/login-action@v3
+    #   with:
+    #     registry: ghcr.io
+    #     username: ${{ github.actor }}
+    #     password: ${{ secrets.GITHUB_TOKEN }} #
+    - name: Manual Docker Login to GHCR
+      run: |
+        # GitHub ActionsのGITHUB_TOKENをパスワードとして使用し、GHCRにログイン
+        echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
 
     # - name: Log in to the Container registry
     #   uses: docker/login-action@v3
