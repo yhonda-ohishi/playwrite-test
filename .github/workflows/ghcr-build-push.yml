@@ -32,28 +32,7 @@ jobs:
 
 
       # 👇 ここから新しいステップを追加します！
-    - name: Start Docker daemon inside runner container # runnerコンテナ内でDockerデーモンを起動
-      run: |
-          # Dockerデーモンをバックグラウンドで起動
-          sudo dockerd &
-          
-          # Dockerデーモンが完全に起動するまで待機
-          echo "Dockerデーモンの起動を待機中..."
-          TIMEOUT=60 # 最大待機時間（秒）
-          for i in $(seq 1 <span class="math-inline">TIMEOUT\); do
-          if sudo docker info \> /dev/null 2\>&1; then
-          echo "Dockerデーモンは</span>{i}秒後に正常に起動しました。"
-              break
-            fi
-            echo "試行 <span class="math-inline">\{i\}/</span>{TIMEOUT}: Dockerデーモンはまだ準備できていません。待機中..."
-            sleep 1
-          done
-          
-          # Dockerデーモンが起動していることを確認し、起動しなければエラーで終了
-          if ! sudo docker info > /dev/null 2>&1; then
-            echo "エラー: Dockerデーモンが時間内に起動しませんでした！"
-            exit 1
-          fi
+
       # 👆 ここまで新しいステップ
 
     - name: Log in to the Container registry # コンテナレジストリにログイン
