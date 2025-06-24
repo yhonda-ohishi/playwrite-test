@@ -50,7 +50,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix nocgo -o server .
 # 実行環境にもそれらが必要です。
 FROM mcr.microsoft.com/playwright:v1.53.0-noble
 
-ENV TZ Asia/Tokyo
+ENV TZ=Asia/Tokyo
 
 # 作業ディレクトリを設定
 WORKDIR /root/

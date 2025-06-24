@@ -1,11 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json" // JSONのエンコード/デコード用パッケージ
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"os"
 	"time"
 
@@ -30,8 +34,9 @@ func main() {
 	// logFile に加えて、標準エラー出力 (os.Stderr) にもログを出力するように設定
 	// io.MultiWriter を使うことで、複数の Writer に同時に書き込めます。
 	mw := os.Stderr
-	log.SetOutput(mw)      // 開発中は両方に出すことが多いですが、本番ではlogFileだけにするなど調整します。
-	log.SetOutput(logFile) // ログ出力を lumberjack に設定
+	log.SetOutput(mw)                          // 開発中は両方に出すことが多いですが、本番ではlogFileだけにするなど調整します。
+	log.SetOutput(logFile)                     // ログ出力を lumberjack に設定
+	log.SetOutput(io.MultiWriter(logFile, mw)) // ログ出力をファイルと標準エラー出力に設定
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
 	log.Println("サーバー起動中...")
@@ -56,6 +61,7 @@ func main() {
 		txtID2 := r.FormValue("txtID2")
 		txtID1 := r.FormValue("txtID1")
 		txtPass := r.FormValue("txtPass")
+		resUrl := r.FormValue("resUrl")
 		w.Header().Set("Content-Type", "application/json")
 		if txtID2 == "" || txtID1 == "" || txtPass == "" { // いずれかの値が空の場合,responseにエラーメッセージを返す
 			returnJson(w, Message{Message: "txtID2, txtID1, txtPassのいずれかが空です。"})
@@ -63,7 +69,7 @@ func main() {
 		}
 		go func() {
 			// Playwrightを使ってウェブサイトをスクレイピング
-			err := getPage(txtID2, txtID1, txtPass)
+			err := getPage(txtID2, txtID1, txtPass, resUrl)
 			if err != nil {
 				log.Printf("スクレイピング中にエラーが発生しました: %v", err)
 			}
@@ -73,6 +79,32 @@ func main() {
 		returnJson(w, Message{Message: "スクレイピングを開始しました。"})
 
 	})
+	http.HandleFunc("/post", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "POSTメソッドのみ許可されています", http.StatusMethodNotAllowed)
+			return
+		}
+		resUrl := r.FormValue("resUrl")
+		if resUrl == "" {
+			http.Error(w, "resUrlが指定されていません。", http.StatusBadRequest)
+			return
+		}
+		// ファイルをアップロードするためのエンドポイント
+		filePath := "./file/downloaded_file.zip" // ここでダウンロードしたファイルのパスを指定
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			http.Error(w, "ダウンロードしたファイルが存在しません。", http.StatusNotFound)
+			return
+		}
+		// ファイルを指定されたURLにPOSTリクエストで送信
+		err := postFileToServer(filePath, resUrl)
+		if err != nil {
+			log.Printf("ファイルのPOST送信に失敗しました: %v", err)
+			http.Error(w, "ファイルのPOST送信に失敗しました。", http.StatusInternalServerError)
+			return
+		}
+		returnJson(w, Message{Message: "ファイルのPOST送信に成功しました。"})
+	})
+
 	log.Printf("HTTPサーバーを :%s で起動します", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatalf("HTTPサーバーの起動に失敗しました: %v", err)
@@ -92,7 +124,7 @@ func returnJson(w http.ResponseWriter, msg Message) {
 	}
 }
 
-func getPage(txtID2 string, txtID1 string, txtPass string) error {
+func getPage(txtID2 string, txtID1 string, txtPass string, resUrl string) error {
 
 	if txtID2 == "" || txtID1 == "" || txtPass == "" {
 		return errors.New("txtID2, txtID1, txtPassのいずれかが空です。")
@@ -370,6 +402,17 @@ func getPage(txtID2 string, txtID1 string, txtPass string) error {
 		log.Printf("ダウンロードファイルを '%s' に保存しました。\n", downloadPath)
 	}
 
+	if resUrl != "" {
+		log.Printf("指定されたURLにリダイレクトします: %s", resUrl)
+		// resUrlが指定されている場合は、指定されたURLにFileをリダイレクト
+		err = postFileToServer(downloadPath, resUrl)
+		if err != nil {
+			log.Printf("ファイルのPOST送信に失敗しました: %v", err)
+			return err
+		}
+	} else {
+		log.Println("resUrlが指定されていないため、ファイルのPOST送信は行いません。")
+	}
 	// スクリーンショットを撮って保存 (デバッグや証拠として便利)
 
 	log.Println("スクレイピングが完了しました。")
@@ -377,6 +420,84 @@ func getPage(txtID2 string, txtID1 string, txtPass string) error {
 	// ここからPlaywrightのコードを記述できます
 	// 例: ブラウザを起動してGoogleにアクセス
 	return nil // ここではエラーがないことを示すために nil を返します
+}
+
+func postFileToServer(filePath string, url string) error {
+	// resUrlが指定されている場合は、指定されたURLにFileをリダイレクト
+	log.Printf("指定されたURLにリダイレクトします: %s", url)
+
+	// ダウンロードしたファイルをmultipartでkey:fileとして送信
+	file, err := os.Open(filePath)
+	if err != nil {
+		log.Printf("ファイルのオープンに失敗しました: %v", err)
+		return err
+	}
+	defer file.Close()
+
+	var b bytes.Buffer
+	writer := multipart.NewWriter(&b)
+	// multipartでファイルを追加
+
+	// --- ここから修正部分 ---
+	// CreateFormFile の代わりに CreatePart を使用し、Content-Type を明示的に設定
+	header := make(textproto.MIMEHeader)
+	// Content-Disposition ヘッダーを設定（nameとfilenameは必須）
+	header.Set("Content-Disposition", `form-data; name="file"; filename="downloaded_file.zip"`)
+	// Content-Type を明示的に application/zip に設定
+	header.Set("Content-Type", "application/zip")
+
+	part, err := writer.CreatePart(header)
+	// part, err := writer.CreateFormFile("file", "downloaded_file.zip")
+	if err != nil {
+		log.Printf("multipart作成失敗: %v", err)
+		return err
+	}
+	_, err = io.Copy(part, file)
+	if err != nil {
+		log.Printf("ファイルコピー失敗: %v", err)
+		return err
+	}
+	writer.Close()
+
+	req, err := http.NewRequest("POST", url, &b)
+	if err != nil {
+		log.Printf("リクエスト作成失敗: %v", err)
+		return err
+	}
+
+	// Content-Typeヘッダーを正しく設定
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("ファイル送信失敗: %v", err)
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		log.Printf("ファイル送信失敗: ステータスコード %d, レスポンス: %s", resp.StatusCode, string(respBody))
+		return fmt.Errorf("ファイル送信失敗: ステータスコード %d", resp.StatusCode)
+	}
+	log.Println("ファイル送信に成功しました。")
+	return nil // ファイル送信に成功した場合は nil を返す
+}
+
+// CreateFormFile の代わりに以下の関数を使用する例
+func createZipFilePart(writer *multipart.Writer, fieldname, filename string, file io.Reader) error {
+	header := make(textproto.MIMEHeader)
+	header.Set("Content-Disposition",
+		fmt.Sprintf(`form-data; name="%s"; filename="%s"`, fieldname, filename))
+	header.Set("Content-Type", "application/zip") // ここで明示的に設定
+
+	part, err := writer.CreatePart(header)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(part, file)
+	return err
 }
 
 // clickSelector は指定されたセレクターをクリックするヘルパー関数です
