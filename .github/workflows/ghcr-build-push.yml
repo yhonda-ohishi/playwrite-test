@@ -22,7 +22,7 @@ jobs:
 
     permissions:
       contents: read       # コードを読み取る権限
-      # packages: write      # GHCRにパッケージ（イメージ）を書き込む権限
+      packages: write      # GHCRにパッケージ（イメージ）を書き込む権限
 
     steps:
     - name: Checkout repository # リポジトリをチェックアウト
