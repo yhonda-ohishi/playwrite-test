@@ -72,6 +72,18 @@ func main() {
 			err := getPage(txtID2, txtID1, txtPass, resUrl)
 			if err != nil {
 				log.Printf("スクレイピング中にエラーが発生しました: %v", err)
+				postErrorToLineWorksBot("スクレイピング中にエラーが発生しました")
+				postErrorToLineWorksBot(fmt.Sprintf("スクレイピング中にエラーが発生しました: %v", err))
+				// エラーが発生した場合は、HTTP post をhttps://hono-lineworks-bot.mtamaramu.com/api/tasksに送信
+				// ここでは、エラーをLINE WORKSのボットに通知するためのHTTP POSTリクエストを送信します
+				// 例: エラーをLINE WORKSのボットに通知
+				// Goでfetchの代わりにHTTP POSTリクエストを送信
+
+				//        await fetch("https://hono-lineworks-bot.mtamaramu.com/api/tasks", {
+				//     "method": "POST", "headers":
+				//         { "Content-Type": "application/json" }, "body": JSON.stringify({ "test": "sendTextMessageLine", "message": `ping RcvError ` })
+				// })
+
 			}
 
 		}()
@@ -105,6 +117,26 @@ func main() {
 		returnJson(w, Message{Message: "ファイルのPOST送信に成功しました。"})
 	})
 
+	http.HandleFunc("/sendMessage", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "POSTメソッドのみ許可されています", http.StatusMethodNotAllowed)
+			return
+		}
+		message := r.FormValue("message")
+		if message == "" {
+			http.Error(w, "messageが指定されていません。", http.StatusBadRequest)
+			return
+		}
+		// LINE WORKSのボットにメッセージを送信
+		err := postErrorToLineWorksBot(message)
+		if err != nil {
+			log.Printf("LINE WORKSのボットへのメッセージ送信に失敗しました: %v", err)
+			http.Error(w, "LINE WORKSのボットへのメッセージ送信に失敗しました。", http.StatusInternalServerError)
+			return
+		}
+		returnJson(w, Message{Message: "LINE WORKSのボットへのメッセージ送信に成功しました。"})
+	})
+
 	log.Printf("HTTPサーバーを :%s で起動します", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatalf("HTTPサーバーの起動に失敗しました: %v", err)
@@ -114,6 +146,33 @@ func main() {
 	// ここでは、Playwrightを使ってウェブサイトをスクレイピング
 
 	// ...
+}
+
+func postErrorToLineWorksBot(message string) error {
+	// ここでは、エラーをLINE WORKSのボットに通知するためのHTTP POSTリクエストを送信します
+	// 例: エラーをLINE WORKSのボットに通知
+	// Goでfetchの代わりにHTTP POSTリクエストを送信
+	url := "https://hono-lineworks-bot.mtamaramu.com/api/tasks"
+	payload := map[string]string{
+		"test":    "sendTextMessageLine",
+		"message": message,
+	}
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("JSONエンコードエラー: %v", err)
+	}
+
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("HTTP POSTリクエスト送信エラー: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("HTTP POSTリクエスト失敗: ステータスコード %d", resp.StatusCode)
+	}
+
+	return nil
 }
 
 // return json.NewEncoder(w).Encode(msg) // JSONエンコードしてレスポンスに書き込む
