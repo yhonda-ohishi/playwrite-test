@@ -75,11 +75,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libudev1 \
     libatomic1 \
     libxslt1.1 \
-    libwoff2-1.0 \
+    woff2 \
     libvpx7 \
     libevent-2.1-7 \
     libopus0 \
-    # libflite1 は除外
     libwebpdemux2 \
     libavif15 \
     libwebpmux3 \
@@ -88,7 +87,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libhyphen0 \
     libmanette-0.2-0 \
     libgles2 \
-    libx264-161 \
+    libx264-164 \
     # フォント
     fonts-liberation \
     fonts-noto \
