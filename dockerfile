@@ -2,7 +2,7 @@
 FROM golang:1.24.4-alpine AS go_builder
 
 # Goアプリケーションのビルドに必要なツールをインストールします。
-# git は go mod download がプライベートリポジトリから取得する場合などに必要です。
+# git は go mod download がプライベートリポジリから取得する場合などに必要です。
 # build-base は Go の CGO_ENABLED=0 ビルドに必要です。
 RUN apk add --no-cache git build-base
 
@@ -31,12 +31,12 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix nocgo -o server .
 # これにより、必要なランタイム依存関係を最小限に抑えつつ、glibc互換性を維持します。
 FROM debian:stable-slim
 
-# パッケージリストを更新し、Node.jsとPlaywrightに必要なランタイム依存をインストールします。
-# 必要なライブラリは、Playwrightの公式ドキュメントやChromiumの依存関係リストを参照し、
-# 最小限に絞り込んでいます。
+# Playwrightに必要なシステム依存関係をインストールします。
+# また、Node.jsの公式リポジトリを追加して最新版のNode.jsをインストールします。
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    nodejs \
-    npm \
+    curl \
+    gnupg \
+    # Chromiumが動作するために最低限必要なライブラリ (Playwright公式ドキュメントより)
     libnss3 \
     libfontconfig1 \
     libgbm1 \
@@ -63,17 +63,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgstreamer-plugins-base1.0-0 \
     libgstreamer1.0-0 \
     libharfbuzz-icu0 \
-    libjpeg-turbo8 \
-    libpng16-16 \
-    libwebp6 \
-    libxshmfence6 \
+    # libjpeg-turbo8, libwebp6, libxshmfence6 はDebian stable-slimでは提供されていないか、
+    # 別の名前の可能性があるため、より一般的なパッケージ名に置き換えるか削除します。
+    # Playwrightのランタイム依存は`chromium`パッケージをインストールすることで自動的に満たされることが多いですが、
+    # そのパッケージはインストールしないため、手動で列挙します。
+    # こちらは一般的な画像/ビデオコーデックの代替
+    libjpeg62-turbo \
+    libwebpdemux2 \
+    libxshmfence-dev \
     libvulkan1 \
-    # フォントも重要 (ブラウザがUIを正しくレンダリングするため)
+    # フォント
     fonts-liberation \
-    fonts-noto-color-emoji \
+    fonts-noto \
     # その他のユーティリティ
     ca-certificates \
     tzdata \
+    # Node.jsとnpmをインストールするための準備
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    # 不要なファイルを削除
     && rm -rf /var/lib/apt/lists/*
 
 # タイムゾーンを設定します。
