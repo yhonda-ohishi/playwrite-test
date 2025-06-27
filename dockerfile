@@ -3,7 +3,7 @@
 # このイメージには Node.js、Playwright ライブラリ、ブラウザバイナリがプリインストールされています。
 # ただし、Go コンパイラは含まれていません。
 # FROM mcr.microsoft.com/playwright:v1.53.0-noble AS builder
-FROM golang:1.22-alpine AS go_builder
+FROM golang:1.24.4-alpine AS go_builder
 # Goのバージョンを1.22に設定
 # AlpineベースのGoイメージを使用します。
 
