@@ -235,7 +235,7 @@ func getEtcMeisai(requestData requestData) error {
 
 		// browser, err := pw.Chromium.Launch()
 		browser, err := pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
-			Headless: playwright.Bool(false), // ヘッドレスモードを有効にする場合はtrue、GUIを表示したい場合はfalseに設定
+			Headless: playwright.Bool(true), // ヘッドレスモードを有効にする場合はtrue、GUIを表示したい場合はfalseに設定
 		})
 		if err != nil {
 			log.Fatalf("ブラウザの起動に失敗しました: %v", err)
