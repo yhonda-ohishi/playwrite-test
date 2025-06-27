@@ -65,32 +65,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxrender1 \
     libxtst6 \
     libegl1 \
-    libgstreamer-plugins-base1.0-0 \
+    # GStreamerの主要なプラグインセット
+    gstreamer1.0-plugins-base \
+    gstreamer1.0-plugins-good \
+    gstreamer1.0-plugins-bad \
     libgstreamer1.0-0 \
     libharfbuzz-icu0 \
     libudev1 \
     libatomic1 \
     libxslt1.1 \
-    libwoff2-2 \
+    libwoff2-1.0-0 \
     libvpx7 \
     libevent-2.1-7 \
     libopus0 \
-    libgstgl-1.0-0 \
-    libgstcodecparsers-1.0-0 \
     libflite1 \
-    libflite-dev \
-    # fliteの各種ボイス・辞書ファイル
-    flite-cmu-grapheme-lang \
-    flite-cmu-grapheme-lex \
-    flite-cmu-indic-lang \
-    flite-cmu-indic-lex \
-    flite-cmulex \
-    flite-cmu-time-awb \
-    flite-cmu-us-awb \
-    flite-cmu-us-kal16 \
-    flite-cmu-us-kal \
-    flite-cmu-us-rms \
-    flite-cmu-us-slt \
+    # libflite-dev および flite-cmu-* の音声モデルは一旦除外
     libwebpdemux2 \
     libavif15 \
     libwebpmux3 \
@@ -99,7 +88,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libhyphen0 \
     libmanette-0.2-0 \
     libgles2 \
-    libx264-163 \
+    libx264-164 \
     # フォント
     fonts-liberation \
     fonts-noto \
