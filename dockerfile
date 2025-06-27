@@ -26,16 +26,17 @@ COPY . .
 # . : 現在のディレクトリにあるGoモジュールをビルドします。
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix nocgo -o server .
 
-# --- ステージ2: 最終的な実行イメージ (軽量なDebianベース) ---
-# Playwrightの公式イメージの代わりに、より軽量なDebianベースのイメージを使用します。
+# --- ステージ2: 最終的な実行イメージ (Debian Bookworm Slimベース) ---
+# Playwrightの公式イメージの代わりに、より軽量なDebian Bookworm Slimイメージを使用します。
 # これにより、必要なランタイム依存関係を最小限に抑えつつ、glibc互換性を維持します。
-FROM debian:stable-slim
+FROM debian:bookworm-slim
 
 # Playwrightに必要なシステム依存関係をインストールします。
-# また、Node.jsの公式リポジトリを追加して最新版のNode.jsをインストールします。
+# Node.jsの公式リポジトリを追加して最新版のNode.jsをインストールします。
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     gnupg \
+    procps \
     # Chromiumが動作するために最低限必要なライブラリ (Playwright公式ドキュメントより)
     libnss3 \
     libfontconfig1 \
@@ -63,15 +64,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgstreamer-plugins-base1.0-0 \
     libgstreamer1.0-0 \
     libharfbuzz-icu0 \
-    # libjpeg-turbo8, libwebp6, libxshmfence6 はDebian stable-slimでは提供されていないか、
-    # 別の名前の可能性があるため、より一般的なパッケージ名に置き換えるか削除します。
-    # Playwrightのランタイム依存は`chromium`パッケージをインストールすることで自動的に満たされることが多いですが、
-    # そのパッケージはインストールしないため、手動で列挙します。
-    # こちらは一般的な画像/ビデオコーデックの代替
-    libjpeg62-turbo \
-    libwebpdemux2 \
-    libxshmfence-dev \
-    libvulkan1 \
+    libudev1 \
     # フォント
     fonts-liberation \
     fonts-noto \
@@ -82,7 +75,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     # 不要なファイルを削除
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /tmp/*
 
 # タイムゾーンを設定します。
 ENV TZ=Asia/Tokyo
