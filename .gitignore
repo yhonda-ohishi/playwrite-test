@@ -3,3 +3,4 @@ file/*
 tmp/*
 dtako_server
 .env
+etc-file/*

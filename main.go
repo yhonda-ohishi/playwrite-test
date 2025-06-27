@@ -21,6 +21,14 @@ type Message struct {
 	Message string `json:"Message"` // JSONのフィールド名を指定
 }
 
+type requestData struct {
+	Data []struct {
+		RisLoginId  string `json:"risLoginId"`
+		RisPassword string `json:"risPassword"`
+	} `json:"data"`
+	ResUrl string `json:"resUrl"`
+}
+
 func main() {
 	logFile := &lumberjack.Logger{
 		Filename:   "./logs/my_application.log", // ログファイルのパス
@@ -74,15 +82,6 @@ func main() {
 				log.Printf("スクレイピング中にエラーが発生しました: %v", err)
 				postErrorToLineWorksBot("スクレイピング中にエラーが発生しました")
 				postErrorToLineWorksBot(fmt.Sprintf("スクレイピング中にエラーが発生しました: %v", err))
-				// エラーが発生した場合は、HTTP post をhttps://hono-lineworks-bot.mtamaramu.com/api/tasksに送信
-				// ここでは、エラーをLINE WORKSのボットに通知するためのHTTP POSTリクエストを送信します
-				// 例: エラーをLINE WORKSのボットに通知
-				// Goでfetchの代わりにHTTP POSTリクエストを送信
-
-				//        await fetch("https://hono-lineworks-bot.mtamaramu.com/api/tasks", {
-				//     "method": "POST", "headers":
-				//         { "Content-Type": "application/json" }, "body": JSON.stringify({ "test": "sendTextMessageLine", "message": `ping RcvError ` })
-				// })
 
 			}
 
@@ -117,6 +116,40 @@ func main() {
 		returnJson(w, Message{Message: "ファイルのPOST送信に成功しました。"})
 	})
 
+	//https://www.etc-meisai.jp/からcsvを取得するためのエンドポイント
+	http.HandleFunc("/etc-meisai", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "POSTメソッドのみ許可されています", http.StatusMethodNotAllowed)
+			return
+		}
+		// 受信したデータをログに出力
+		// risLoginId := r.FormValue("risLoginId")
+		// risPassword := r.FormValue("risPassword")
+		// if risLoginId == "" || risPassword == "" { // いずれかの値が空の場合,responseにエラーメッセージを返す
+		// 	http.Error(w, "risLoginId, risPasswordのいずれかが空です。", http.StatusBadRequest)
+		// 	return
+		// }
+		// requestからJsonを取得
+		var requestData requestData
+
+		if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil {
+			http.Error(w, "リクエストボディのJSONデコードに失敗しました。", http.StatusBadRequest)
+			return
+		}
+		go func() {
+
+			err := getEtcMeisai(requestData)
+			if err != nil {
+				log.Printf("etc-meisai.jpからのデータ取得中にエラーが発生しました: %v", err)
+				postErrorToLineWorksBot(fmt.Sprintf("etc-meisai.jpからのデータ取得中にエラーが発生しました: %v", err))
+				http.Error(w, "etc-meisai.jpからのデータ取得に失敗しました。", http.StatusInternalServerError)
+				return
+			}
+		}()
+		log.Println("etc-meisai.jpからのデータ取得を開始しました。")
+		returnJson(w, Message{Message: "etc-meisai.jpからのデータ取得を開始しました。"})
+
+	})
 	http.HandleFunc("/sendMessage", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "POSTメソッドのみ許可されています", http.StatusMethodNotAllowed)
@@ -146,6 +179,259 @@ func main() {
 	// ここでは、Playwrightを使ってウェブサイトをスクレイピング
 
 	// ...
+}
+
+func getEtcMeisai(requestData requestData) error {
+
+	// ここでは、risLoginIdとrisPasswordを使ってetc-meisai.jpからCSVを取得する処理を実装します
+	// Playwrightを使ってウェブサイトにアクセスし、ログインしてCSVをダウンロードするなどの処理を行います
+	err := playwright.Install()
+	if err != nil {
+		log.Fatalf("Playwright のインストールに失敗しました: %v", err)
+	}
+	log.Println("Playwright ブラウザがインストールされました！")
+
+	err = os.MkdirAll("./etc-file", 0755)
+	if err != nil {
+		log.Fatalf("etc-fileディレクトリの作成に失敗しました: %v", err)
+	} else {
+		log.Println("etc-fileディレクトリが作成されました。")
+	}
+
+	files, err := os.ReadDir("./etc-file")
+	if err != nil {
+		log.Fatalf("fileディレクトリの読み取りに失敗しました: %v", err)
+	} else {
+		if len(files) > 0 {
+			log.Println("fileディレクトリに既存のファイルがあります。")
+			// 既存のファイルを削除
+			for _, file := range files {
+				err := os.Remove("./etc-file/" + file.Name())
+				if err != nil {
+					log.Printf("ファイル '%s' の削除に失敗しました: %v", file.Name(), err)
+				} else {
+					log.Printf("ファイル '%s' を削除しました。\n", file.Name())
+				}
+			}
+			log.Println("fileディレクトリの既存のファイルを削除しました。")
+		} else {
+			log.Println("fileディレクトリは空です。")
+		}
+	}
+
+	// Playwrightの起動
+	// pw, err := playwright.Run()
+	pw, err := playwright.Run()
+	// ここでPlaywrightのオプションを設定できます
+	if err != nil {
+		log.Fatalf("Playwright の起動に失敗しました: %v", err)
+	}
+	defer pw.Stop()
+
+	for _, data := range requestData.Data {
+		risLoginId := data.RisLoginId
+		risPassword := data.RisPassword
+		log.Printf("処理対象: risLoginId=%s", risLoginId)
+
+		// browser, err := pw.Chromium.Launch()
+		browser, err := pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
+			Headless: playwright.Bool(false), // ヘッドレスモードを有効にする場合はtrue、GUIを表示したい場合はfalseに設定
+		})
+		if err != nil {
+			log.Fatalf("ブラウザの起動に失敗しました: %v", err)
+		}
+		defer browser.Close() // プログラム終了時にブラウザを確実に閉じる
+		log.Printf("etc-meisai.jpにログイン中: %s", risLoginId)
+		page, err := browser.NewPage()
+		if err != nil {
+			log.Fatalf("ページの作成に失敗しました: %v", err)
+		}
+
+		// 目的のURLに移動
+		targetURL := "https://www2.etc-meisai.jp/etc/R?funccode=1013000000&nextfunc=1013000000" // スクレイピングしたいウェブサイトのURLに変更してください
+		log.Printf("URLにアクセス中: %s", targetURL)
+		_, err = page.Goto(targetURL)
+		if err != nil {
+			log.Fatalf("URLへの移動に失敗しました: %v", err)
+		}
+		title, err := page.Title()
+		if err != nil {
+			log.Printf("タイトル取得中にエラー: %v", err)
+			title = "取得できませんでした"
+			return err
+		}
+
+		log.Printf("ページのタイトル: %s\n", title)
+		// ここでPlaywrightを使ってログイン処理やCSVダウンロード処理を実装します
+		log.Println("ログイン処理を開始します。")
+		err = waitForSelectorWithName(page, "focusTarget", 10000) // ログインIDの入力フィールドが表示されるまで待機
+		if err != nil {
+			log.Printf("ログインIDの入力フィールドの表示待機中にエラーが発生しました: %v", err)
+		}
+		// ログインIDの入力フィールドに値を入力
+		err = inputSelectorWithName(page, "risLoginId", risLoginId)
+		if err != nil {
+			log.Printf("ログインIDの入力中にエラーが発生しました: %v", err)
+		}
+		err = inputSelectorWithName(page, "risPassword", risPassword) // パスワードの入力フィールドが表示されるまで待機
+		if err != nil {
+			return err
+		}
+		err = clickSelectorWithName(page, "focusTarget", 10000)
+		if err != nil {
+			log.Printf("ログインボタンのクリック中にエラーが発生しました: %v", err)
+		}
+
+		//3秒待機
+		log.Println("ログインボタンをクリックしました。3秒待機します。")
+		time.Sleep(3 * time.Second)
+
+		//pageの情報を取得
+		log.Println("ログインボタンをクリックした後のページ情報を取得します。")
+		// ページのURLを取得
+		currentURL := page.URL()
+		log.Printf("現在のURL: %s\n", currentURL)
+		//https://www2.etc-meisai.jp/etc/R?funccode=1013000000&nextfunc=1013000000
+		//https://www2.etc-meisai.jp/etc/R?funccode=1013000000&nextfunc=1013000000
+
+		//page に1014000000が含まれているか確認
+		content, err := page.Content()
+
+		if err != nil {
+			log.Printf("ページの内容取得中にエラーが発生しました: %v", err)
+			return err
+
+		}
+		if contains(content, "1014000000") {
+
+			// javascript submitPage('frm','/etc/R?funccode=1014000000&nextfunc=1014000000');の実行
+			_, err = page.Evaluate("submitPage('frm','/etc/R?funccode=1014000000&nextfunc=1014000000')", nil)
+			if err != nil {
+				log.Printf("JavaScriptの実行中にエラーが発生しました: %v", err)
+			}
+		}
+
+		// ログインボタンをクリックした後、3秒待機
+		err = waitForSelectorWithName(page, "focusTarget_Save", 10000) // ログインボタンが表示されるまで待機
+		if err != nil {
+			log.Printf("ログインボタンの表示待機中にエラーが発生しました: %v", err)
+			return err
+		}
+		//2か月前の日付を作成
+		lastmonth := time.Now().AddDate(0, -1, 0) // 2か月前の日付を取得
+		//年を4桁で取得
+		lastmonthYY := fmt.Sprintf("%04d", lastmonth.Year()) // 年を4桁で取得
+		lastmonthMM := fmt.Sprintf("%02d", int(lastmonth.Month()))
+		// last2monthDD := fmt.Sprintf("%02d", last2month.Day()) // 日を2桁で取得
+		// 今日の日付を取得
+		today := time.Now()
+		todayYY := fmt.Sprintf("%04d", today.Year()) // 年を4桁で取得
+		todayMM := fmt.Sprintf("%02d", int(today.Month()))
+		todayDD := fmt.Sprintf("%02d", today.Day())          // 日を2桁で取得
+		selectSlectorwithName(page, "fromYYYY", lastmonthYY) // 開始年を2か月前の年に設定
+		selectSlectorwithName(page, "fromMM", lastmonthMM)   // 開始年を2か月前の年に設定
+		selectSlectorwithName(page, "fromDD", "01")          // 開始年を2か月前の年に設定
+		selectSlectorwithName(page, "toYYYY", todayYY)       // 終了年を今日の年に設定
+		selectSlectorwithName(page, "toMM", todayMM)         // 終了月を今日の月に設定
+		selectSlectorwithName(page, "toDD", todayDD)         // 終了日を今日の日に設定
+		// 日付を入力
+		clickRadioButtonByNameByValue(page, "sokoKbn", 0) // ラジオボタンをクリック
+
+		//javascript allSelected('hyojiCard')の実行
+		_, err = page.Evaluate("allSelected('hyojiCard')", nil)
+		if err != nil {
+			log.Printf("JavaScriptの実行中にエラーが発生しました: %v", err)
+		}
+
+		clickSelectorWithName(page, "focusTarget_Save", 10000) // ログインボタンをクリック
+		clickSelectorWithName(page, "focusTarget", 10000)      // ログインボタンをクリック
+		// 3秒待機
+		log.Println("3秒待機します。")
+		time.Sleep(7 * time.Second) // ログインボタンをクリックした後、3秒待機
+		page.On("dialog", func(dialog playwright.Dialog) {
+			fmt.Printf("Dialog type: %s\n", dialog.Type())
+			fmt.Printf("Dialog message: %s\n", dialog.Message())
+
+			if dialog.Type() == "alert" {
+				dialog.Accept() // alertはOKしかないのでaccept
+				log.Println("アラートダイアログを受け入れました。")
+			} else if dialog.Type() == "confirm" {
+				dialog.Accept() // OKをクリック
+				log.Printf("確認ダイアログを受け入れました。")
+			} else if dialog.Type() == "prompt" {
+				dialog.Accept("これはプロンプトの応答です")
+			} else {
+				log.Printf("Unknown dialog type: %s", dialog.Type())
+			}
+		})
+		//javascript goOutput(false, 'hakkoMeisai', 'frm', '/etc/R?funccode=1032000000&nextfunc=1032500000', '_blank')の実行
+		// _, err = page.Evaluate("goOutput(false, 'hakkoMeisai', 'frm', '/etc/R?funccode=1032000000&nextfunc=1032500000', '_blank')", nil)
+		err = clickInputByValeue(page, "利用明細ＣＳＶ出力") // hakkoMeisaiのラジオボタンをクリック
+		log.Println("CSVダウンロードのためのJavaScriptを実行しました。")
+		if err != nil {
+			log.Printf("JavaScriptの実行中にエラーが発生しました: %v", err)
+		}
+
+		//selector を確認
+		//fileディレクトリにダウンロードしたファイルが存在するか確認
+		download, err := page.ExpectDownload(func() error {
+			return nil // 既にクリック済みなので何もしない
+		}, playwright.PageExpectDownloadOptions{
+			Timeout: playwright.Float(60000), // 60秒待機
+		})
+		if err != nil {
+			log.Printf("ダウンロードの待機中にエラーが発生しました: %v", err)
+			return err
+		} else {
+			log.Printf("ダウンロードが完了しました: %s", download.URL())
+		}
+		downloadPath := "etc-file/" + risLoginId + ".csv" // 保存するファイル名
+		err = download.SaveAs(downloadPath)
+		if err != nil {
+			log.Printf("ダウンロードファイルの保存に失敗しました: %v", err)
+			return err
+		} else {
+			log.Printf("ダウンロードファイルを '%s' に保存しました。\n", downloadPath)
+		}
+		if requestData.ResUrl != "" {
+			// resUrlが指定されている場合は、ファイルをPOSTリクエストで送信
+			log.Printf("resUrlが指定されているため、ファイルをPOSTリクエストで送信します: %s", requestData.ResUrl)
+			// err = postFileToServer(downloadPath, requestData.ResUrl)
+			// if err != nil {
+			// 	log.Printf("ファイルのPOST送信に失敗しました: %v", err)
+			// 	return err
+			// } else {
+			// 	log.Println("ファイルのPOST送信に成功しました。")
+			// }
+		}
+		// ここでrisLoginId, risPasswordを使った処理を行う
+	}
+
+	return nil // エラーがない場合はnilを返す
+}
+
+// contains checks if the content contains the specified string
+func contains(content, s string) bool {
+	// content に s が含まれているか確認する関数
+	return bytes.Contains([]byte(content), []byte(s))
+	// panic("unimplemented")
+}
+
+func clickRadioButtonByNameByValue(page playwright.Page, name string, value int) error {
+	// ラジオボタンをクリックするための関数
+	// name: ラジオボタンのname属性
+	// timeout: 待機時間（ミリ秒）
+	selector := fmt.Sprintf("input[name='%s'][value='%d']", name, value) // ラジオボタンのセレクターを作成
+	log.Printf("ラジオボタン %s をクリックします。セレクター: %s", name, selector)
+	err := page.Locator(selector).WaitFor(playwright.LocatorWaitForOptions{
+		State:   playwright.WaitForSelectorStateVisible,
+		Timeout: playwright.Float(float64(3000)),
+	})
+	if err != nil {
+		log.Printf("ラジオボタン %s の表示待機中にエラーが発生しました: %v", name, err)
+		return err
+	}
+	return clickSelector(page, selector, 3000) // ラジオボタンをクリック
 }
 
 func postErrorToLineWorksBot(message string) error {
@@ -559,6 +845,20 @@ func createZipFilePart(writer *multipart.Writer, fieldname, filename string, fil
 	return err
 }
 
+func selectSlectorwithName(page playwright.Page, name string, value string) error {
+	// セレクターを名前で取得して値を選択
+	_, err := page.Locator(fmt.Sprintf("[name='%s']", name)).SelectOption(playwright.SelectOptionValues{
+		Values: &[]string{value},
+	})
+	if err != nil {
+		log.Printf("セレクター '[name=\"%s\"]' の値 '%s' の選択に失敗しました: %v", name, value, err)
+		return err
+	}
+	log.Printf("セレクター '[name=\"%s\"]' で値 '%s' を選択しました。\n", name, value)
+	return nil
+
+}
+
 // clickSelector は指定されたセレクターをクリックするヘルパー関数です
 // エラーが発生した場合はログに出力し、エラーを返します
 // 成功した場合はクリックしたセレクターをログに出力します
@@ -576,6 +876,36 @@ func clickSelector(page playwright.Page, selector string, timeout ...int32) erro
 	return nil
 }
 
+func clickSelectorWithName(page playwright.Page, name string, timeout ...int32) error {
+	var opts playwright.LocatorClickOptions
+	if len(timeout) > 0 {
+		opts.Timeout = playwright.Float(float64(timeout[0]))
+	}
+	// セレクターを名前で取得してクリック
+	err := page.Locator(fmt.Sprintf("[name='%s']", name)).Click(opts)
+	if err != nil {
+		log.Printf("セレクター '[name=\"%s\"]' のクリックに失敗しました: %v", name, err)
+		return err
+	}
+	log.Printf("セレクター '[name=\"%s\"]' をクリックしました。\n", name)
+	return nil
+}
+
+func waitForSelectorWithName(page playwright.Page, name string, timeout ...int32) error {
+	var opts playwright.LocatorWaitForOptions
+	if len(timeout) > 0 {
+		opts.Timeout = playwright.Float(float64(timeout[0]))
+	}
+	// セレクターを名前で取得して表示待機
+	err := page.Locator(fmt.Sprintf("[name='%s']", name)).WaitFor(opts)
+	if err != nil {
+		log.Printf("セレクター '[name=\"%s\"]' の表示待機に失敗しました: %v", name, err)
+		return err
+	}
+	log.Printf("セレクター '[name=\"%s\"]' が表示されました。\n", name)
+	return nil
+}
+
 // waitforSelector は指定されたセレクターが表示されるまで待機するヘルパー関数です
 // エラーが発生した場合はログに出力し、エラーを返します
 // 成功した場合は表示されたセレクターをログに出力します
@@ -590,6 +920,30 @@ func waitForSelector(page playwright.Page, selector string, timeout ...int32) er
 		return err
 	}
 	log.Printf("セレクター '%s' が表示されました。\n", selector)
+	return nil
+}
+
+func inputSelectorWithName(page playwright.Page, name string, text string) error {
+	// セレクターを名前で取得してテキストを入力
+	err := page.Locator(fmt.Sprintf("[name='%s']", name)).Fill(text)
+	if err != nil {
+		log.Printf("セレクター '[name=\"%s\"]' への入力に失敗しました: %v", name, err)
+		return err
+	}
+	log.Printf("セレクター '[name=\"%s\"]' にテキスト '%s' を入力しました。\n", name, text)
+	return nil
+}
+
+func clickInputByValeue(page playwright.Page, value string) error {
+	// セレクターを名前と値で取得してクリック
+	selector := fmt.Sprintf("input[value='%s'][type='button']", value)
+
+	err := page.Locator(selector).Click()
+	if err != nil {
+		log.Printf("セレクター '%s' のクリックに失敗しました: %v", selector, err)
+		return err
+	}
+	log.Printf("セレクター '%s' をクリックしました。\n", selector)
 	return nil
 }
 
