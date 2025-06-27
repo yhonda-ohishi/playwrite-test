@@ -26,30 +26,61 @@ COPY . .
 # . : 現在のディレクトリにあるGoモジュールをビルドします。
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix nocgo -o server .
 
-# --- ステージ2: 最終的な実行イメージ (Playwright-Goのランタイム依存関係を含む) ---
-FROM alpine:latest
+# --- ステージ2: 最終的な実行イメージ (軽量なDebianベース) ---
+# Playwrightの公式イメージの代わりに、より軽量なDebianベースのイメージを使用します。
+# これにより、必要なランタイム依存関係を最小限に抑えつつ、glibc互換性を維持します。
+FROM debian:stable-slim
 
-# Playwrightがブラウザ (Chromiumを想定) を実行するために必要なシステム依存関係をインストールします。
-# さらに、Playwrightドライバを実行するために必要な Node.js と npm も追加します。
-RUN apk add --no-cache \
+# パッケージリストを更新し、Node.jsとPlaywrightに必要なランタイム依存をインストールします。
+# 必要なライブラリは、Playwrightの公式ドキュメントやChromiumの依存関係リストを参照し、
+# 最小限に絞り込んでいます。
+RUN apt-get update && apt-get install -y --no-install-recommends \
     nodejs \
     npm \
-    nss \
-    freetype \
-    harfbuzz \
-    brotli \
-    libstdc++ \
-    udev \
-    ttf-freefont \
+    libnss3 \
+    libfontconfig1 \
+    libgbm1 \
+    libglib2.0-0 \
+    libgdk-pixbuf2.0-0 \
+    libgtk-3-0 \
+    libasound2 \
+    libgconf-2-4 \
+    libnotify4 \
+    libxss1 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libxkbcommon0 \
+    libxi6 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libxcursor1 \
+    libxrender1 \
+    libxtst6 \
+    libegl1 \
+    libgstreamer-plugins-base1.0-0 \
+    libgstreamer1.0-0 \
+    libharfbuzz-icu0 \
+    libjpeg-turbo8 \
+    libpng16-16 \
+    libwebp6 \
+    libxshmfence6 \
+    libvulkan1 \
+    # フォントも重要 (ブラウザがUIを正しくレンダリングするため)
+    fonts-liberation \
+    fonts-noto-color-emoji \
+    # その他のユーティリティ
     ca-certificates \
     tzdata \
-    && rm -rf /var/cache/apk/*
-
-# アプリケーションの作業ディレクトリを設定します。
-WORKDIR /app
+    && rm -rf /var/lib/apt/lists/*
 
 # タイムゾーンを設定します。
 ENV TZ=Asia/Tokyo
+
+# アプリケーションの作業ディレクトリを設定します。
+WORKDIR /app
 
 # Goアプリケーションのビルド済みバイナリをコピーします。
 COPY --from=go_builder /app/server .
@@ -58,5 +89,4 @@ COPY --from=go_builder /app/server .
 EXPOSE 8080
 
 # コンテナ起動時に実行されるコマンドを設定します。
-# ビルドステージで指定したバイナリ名 (`server`) を使用します。
 CMD ["./server"]
