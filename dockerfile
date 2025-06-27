@@ -44,6 +44,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     libgdk-pixbuf2.0-0 \
     libgtk-3-0 \
+    # GTK4関連のライブラリ
+    libgtk-4-1 \
+    libgraphene-1.0-0 \
+    libadwaita-1-0 \
     libasound2 \
     libgconf-2-4 \
     libnotify4 \
@@ -65,6 +69,37 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgstreamer1.0-0 \
     libharfbuzz-icu0 \
     libudev1 \
+    libatomic1 \
+    libxslt1.1 \
+    libwoff2-2 \
+    libvpx7 \
+    libevent-2.1-7 \
+    libopus0 \
+    libgstgl-1.0-0 \
+    libgstcodecparsers-1.0-0 \
+    libflite1 \
+    libflite-dev \
+    # fliteの各種ボイス・辞書ファイル
+    flite-cmu-grapheme-lang \
+    flite-cmu-grapheme-lex \
+    flite-cmu-indic-lang \
+    flite-cmu-indic-lex \
+    flite-cmulex \
+    flite-cmu-time-awb \
+    flite-cmu-us-awb \
+    flite-cmu-us-kal16 \
+    flite-cmu-us-kal \
+    flite-cmu-us-rms \
+    flite-cmu-us-slt \
+    libwebpdemux2 \
+    libavif15 \
+    libwebpmux3 \
+    libenchant-2-2 \
+    libsecret-1-0 \
+    libhyphen0 \
+    libmanette-0.2-0 \
+    libgles2 \
+    libx264-163 \
     # フォント
     fonts-liberation \
     fonts-noto \
