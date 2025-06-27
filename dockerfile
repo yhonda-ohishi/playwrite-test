@@ -65,21 +65,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxrender1 \
     libxtst6 \
     libegl1 \
-    # GStreamerの主要なプラグインセット
+    # GStreamerの主要なプラグインセットと追加コーデック
     gstreamer1.0-plugins-base \
     gstreamer1.0-plugins-good \
     gstreamer1.0-plugins-bad \
+    gstreamer1.0-libav \
     libgstreamer1.0-0 \
     libharfbuzz-icu0 \
     libudev1 \
     libatomic1 \
     libxslt1.1 \
-    libwoff2-1.0-0 \
+    libwoff2-1.0 \
     libvpx7 \
     libevent-2.1-7 \
     libopus0 \
-    libflite1 \
-    # libflite-dev および flite-cmu-* の音声モデルは一旦除外
+    # libflite1 は除外
     libwebpdemux2 \
     libavif15 \
     libwebpmux3 \
@@ -88,7 +88,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libhyphen0 \
     libmanette-0.2-0 \
     libgles2 \
-    libx264-164 \
+    libx264-161 \
     # フォント
     fonts-liberation \
     fonts-noto \
