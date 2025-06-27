@@ -95,7 +95,9 @@ WORKDIR /root/
 
 # ビルドステージからコンパイル済みバイナリをコピー
 # COPY --from=builder /app/server .
-COPY --from=go_builder /usr/local/bin/server .
+# COPY --from=go_builder /usr/local/bin/server .
+COPY --from=go_builder /app/server .
+
 
 # アプリケーションがリッスンするポートを公開 (情報提供のみ)
 EXPOSE 8080
