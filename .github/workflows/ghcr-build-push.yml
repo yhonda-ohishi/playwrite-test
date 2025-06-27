@@ -57,7 +57,7 @@ jobs:
     - name: restart docker-compose # Docker Composeを再起動
       run: |
         # Docker Composeを使用してサービスを再起動
-        docker compose -f /app/docker-compose/docker-compose.yml down && docker compose -f /app/docker-compose/docker-compose.yml pull && docker compose -f /app/docker-compose/docker-compose.yml up -d
+        docker compose -f /app/docker-compose/docker-compose.yaml down && docker compose -f /app/docker-compose/docker-compose.yaml pull && docker compose -f /app/docker-compose/docker-compose.yaml up -d
         # docker compose -f /app/docker-compose.yml down && docker compose -f /app/docker-compose.yml pull && docker compose -f /app/docker-compose.yml up -d
 
     # - name: Log in to the Container registry
