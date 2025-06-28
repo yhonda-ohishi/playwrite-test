@@ -1,0 +1,10 @@
+{
+    "go.coverOnSave": true,
+    "go.coverageDecorator": {
+        "type": "highlight",
+        "coveredBorderColor": "rgba(64,128,128,0.5)",
+        "coveredHighlightColor": "rgba(64,128,128,0.5)",
+        "uncoveredBorderColor": "rgba(128,64,64,0.25)",
+        "uncoveredHighlightColor": "rgba(128,64,64,0.25)"
+    }
+}

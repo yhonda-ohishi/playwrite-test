@@ -17,6 +17,8 @@ import (
 	"github.com/playwright-community/playwright-go" // Playwright-Goをインポート
 )
 
+var defaultHTTPClient = &http.Client{}
+
 type Message struct {
 	Message string `json:"Message"` // JSONのフィールド名を指定
 }
@@ -421,6 +423,10 @@ func clickRadioButtonByNameByValue(page playwright.Page, name string, value int)
 	// ラジオボタンをクリックするための関数
 	// name: ラジオボタンのname属性
 	// timeout: 待機時間（ミリ秒）
+	if page == nil {
+		return errors.New("page is nil")
+
+	}
 	selector := fmt.Sprintf("input[name='%s'][value='%d']", name, value) // ラジオボタンのセレクターを作成
 	log.Printf("ラジオボタン %s をクリックします。セレクター: %s", name, selector)
 	err := page.Locator(selector).WaitFor(playwright.LocatorWaitForOptions{
@@ -429,27 +435,48 @@ func clickRadioButtonByNameByValue(page playwright.Page, name string, value int)
 	})
 	if err != nil {
 		log.Printf("ラジオボタン %s の表示待機中にエラーが発生しました: %v", name, err)
+		// エラーが発生した場合は、コードの行をエラーに追加して、エラーを返す
+		err = fmt.Errorf("ラジオボタン %s の表示待機中にエラーが発生しました: %w", name, err)
 		return err
 	}
 	return clickSelector(page, selector, 3000) // ラジオボタンをクリック
 }
 
-func postErrorToLineWorksBot(message string) error {
+const url = "https://hono-lineworks-bot.mtamaramu.com/api/tasks"
+
+// coverage:ignore
+func postErrorToLineWorksBot(message string, inputUrl ...string) error {
 	// ここでは、エラーをLINE WORKSのボットに通知するためのHTTP POSTリクエストを送信します
 	// 例: エラーをLINE WORKSのボットに通知
 	// Goでfetchの代わりにHTTP POSTリクエストを送信
-	url := "https://hono-lineworks-bot.mtamaramu.com/api/tasks"
 	payload := map[string]string{
 		"test":    "sendTextMessageLine",
 		"message": message,
 	}
-	jsonData, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("JSONエンコードエラー: %v", err)
+
+	// URLを決定（入力があればそれを使用、なければデフォルトのconst urlを使用）
+	targetUrl := url
+	if len(inputUrl) > 0 && inputUrl[0] != "" {
+		targetUrl = inputUrl[0]
 	}
+
+	err := postJson(payload, targetUrl)
+	if err != nil {
+		log.Printf("LINE WORKSのボットへのメッセージ送信に失敗しました: %v", err)
+		return fmt.Errorf("LINE WORKSのボットへのメッセージ送信に失敗しました: %v", err)
+	}
+
+	return nil
+}
+
+func postJson(payload interface{}, url string) error {
+	// JSONをPOSTリクエストで送信する関数
+	jsonData, _ := json.Marshal(payload)
+	log.Printf("POSTリクエストを送信: URL=%s, データ=%s", url, string(jsonData))
 
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
+		// log.Printf("HTTP POSTリクエスト送信エラー: URL=%s, エラー: %v", url, err)
 		return fmt.Errorf("HTTP POSTリクエスト送信エラー: %v", err)
 	}
 	defer resp.Body.Close()

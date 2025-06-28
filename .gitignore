@@ -4,3 +4,4 @@ tmp/*
 dtako_server
 .env
 etc-file/*
+cover
